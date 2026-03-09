@@ -1,0 +1,5 @@
+{
+  "name": "Data Transformer Pro",
+  "description": "Modular app to extract and transform data from PDFs and other sources into standardized formats like CSV/Excel using Gemini.",
+  "requestFramePermissions": []
+}
