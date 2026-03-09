@@ -3,7 +3,8 @@ import { useDropzone } from 'react-dropzone';
 import { FileText, Upload, CheckCircle, XCircle, Loader2, Download, Trash2, Table } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { extractInvoiceData } from '../lib/gemini';
+import { extractDocumentData } from '../lib/gemini';
+import { INVOICE_PROMPT, INVOICE_SCHEMA } from '../lib/schemas';
 import { cn } from '../lib/utils';
 
 interface InvoiceFile {
@@ -52,20 +53,21 @@ export function InvoiceExtractor() {
   const processFiles = async () => {
     setIsProcessing(true);
     
-    for (let i = 0; i < files.length; i++) {
-      if (files[i].status === 'success') continue;
+    const pendingFiles = files.filter(f => f.status !== 'success');
+    
+    // Mark all pending as processing
+    setFiles(prev => prev.map(f => f.status !== 'success' ? { ...f, status: 'processing' } : f));
 
-      setFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'processing' } : f));
-
+    await Promise.all(pendingFiles.map(async (fileObj) => {
       try {
-        const base64 = await fileToBase64(files[i].file);
-        const data = await extractInvoiceData(base64);
+        const base64 = await fileToBase64(fileObj.file);
+        const data = await extractDocumentData(base64, fileObj.file.type, INVOICE_PROMPT, INVOICE_SCHEMA);
         
-        setFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'success', data } : f));
+        setFiles(prev => prev.map(f => f.id === fileObj.id ? { ...f, status: 'success', data } : f));
       } catch (error: any) {
-        setFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'error', error: error.message } : f));
+        setFiles(prev => prev.map(f => f.id === fileObj.id ? { ...f, status: 'error', error: error.message } : f));
       }
-    }
+    }));
     
     setIsProcessing(false);
   };
